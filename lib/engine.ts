@@ -1,0 +1,336 @@
+import type {
+  BracketMatch,
+  Fixture,
+  Group,
+  Predictions,
+  ResolvedMatch,
+  ResolvedSlot,
+  Round,
+  Score,
+  SlotSpec,
+  TeamStanding,
+} from "./types";
+
+// -------------------------------------------------------------------------------
+// Scores
+// -------------------------------------------------------------------------------
+
+/** Effective score for a fixture: a user prediction/override wins over the real result. */
+export function effectiveScore(f: Fixture, p: Predictions): Score | null {
+  const override = p.scores[f.id];
+  if (override) return override;
+  if (f.homeScore != null && f.awayScore != null) {
+    return { home: f.homeScore, away: f.awayScore };
+  }
+  return null;
+}
+
+/** Whether the fixture currently has a real (played) result, ignoring predictions. */
+export function isPlayed(f: Fixture): boolean {
+  return f.homeScore != null && f.awayScore != null;
+}
+
+// -------------------------------------------------------------------------------
+// Group standings
+// -------------------------------------------------------------------------------
+
+function blank(team: string, group: string): TeamStanding {
+  return {
+    team,
+    group,
+    played: 0,
+    won: 0,
+    drawn: 0,
+    lost: 0,
+    gf: 0,
+    ga: 0,
+    gd: 0,
+    points: 0,
+    rank: 0,
+  };
+}
+
+function overallCmp(a: TeamStanding, b: TeamStanding): number {
+  return (
+    b.points - a.points ||
+    b.gd - a.gd ||
+    b.gf - a.gf ||
+    a.team.localeCompare(b.team)
+  );
+}
+
+function eqOverall(a: TeamStanding, b: TeamStanding): boolean {
+  return a.points === b.points && a.gd === b.gd && a.gf === b.gf;
+}
+
+/** Mini head-to-head table among a subset of teams. */
+function headToHead(
+  teams: string[],
+  fixtures: Fixture[],
+  scoreOf: (f: Fixture) => Score | null,
+): Map<string, { points: number; gd: number; gf: number }> {
+  const set = new Set(teams);
+  const m = new Map<string, { points: number; gd: number; gf: number }>();
+  for (const t of teams) m.set(t, { points: 0, gd: 0, gf: 0 });
+  for (const f of fixtures) {
+    if (!set.has(f.home) || !set.has(f.away)) continue;
+    const s = scoreOf(f);
+    if (!s) continue;
+    const h = m.get(f.home)!;
+    const a = m.get(f.away)!;
+    h.gf += s.home;
+    h.gd += s.home - s.away;
+    a.gf += s.away;
+    a.gd += s.away - s.home;
+    if (s.home > s.away) h.points += 3;
+    else if (s.home < s.away) a.points += 3;
+    else {
+      h.points += 1;
+      a.points += 1;
+    }
+  }
+  return m;
+}
+
+/** Apply FIFA tiebreakers (overall pts/gd/gf, then head-to-head among tied) and assign ranks. */
+function rankTable(
+  arr: TeamStanding[],
+  fixtures: Fixture[],
+  scoreOf: (f: Fixture) => Score | null,
+): void {
+  arr.sort(overallCmp);
+  let i = 0;
+  while (i < arr.length) {
+    let j = i + 1;
+    while (j < arr.length && eqOverall(arr[i], arr[j])) j++;
+    if (j - i > 1) {
+      const block = arr.slice(i, j);
+      const h2h = headToHead(
+        block.map((s) => s.team),
+        fixtures,
+        scoreOf,
+      );
+      block.sort((x, y) => {
+        const hx = h2h.get(x.team)!;
+        const hy = h2h.get(y.team)!;
+        return (
+          hy.points - hx.points ||
+          hy.gd - hx.gd ||
+          hy.gf - hx.gf ||
+          x.team.localeCompare(y.team)
+        );
+      });
+      for (let k = 0; k < block.length; k++) arr[i + k] = block[k];
+    }
+    i = j;
+  }
+  arr.forEach((s, idx) => (s.rank = idx + 1));
+}
+
+/** Standings for a single group. */
+export function groupStandings(
+  group: Group,
+  fixtures: Fixture[],
+  p: Predictions,
+): TeamStanding[] {
+  const scoreOf = (f: Fixture) => effectiveScore(f, p);
+  const table = new Map<string, TeamStanding>();
+  for (const t of group.teams) table.set(t, blank(t, group.group));
+  const groupFixtures = fixtures.filter((f) => f.group === group.group);
+  for (const f of groupFixtures) {
+    const s = scoreOf(f);
+    if (!s) continue;
+    const h = table.get(f.home);
+    const a = table.get(f.away);
+    if (!h || !a) continue;
+    h.played++;
+    a.played++;
+    h.gf += s.home;
+    h.ga += s.away;
+    a.gf += s.away;
+    a.ga += s.home;
+    if (s.home > s.away) {
+      h.won++;
+      h.points += 3;
+      a.lost++;
+    } else if (s.home < s.away) {
+      a.won++;
+      a.points += 3;
+      h.lost++;
+    } else {
+      h.drawn++;
+      a.drawn++;
+      h.points++;
+      a.points++;
+    }
+  }
+  const arr = [...table.values()];
+  for (const s of arr) s.gd = s.gf - s.ga;
+  rankTable(arr, groupFixtures, scoreOf);
+  return arr;
+}
+
+/** Map of group letter -> ranked standings. */
+export function allStandings(
+  groups: Group[],
+  fixtures: Fixture[],
+  p: Predictions,
+): Map<string, TeamStanding[]> {
+  const m = new Map<string, TeamStanding[]>();
+  for (const g of groups) m.set(g.group, groupStandings(g, fixtures, p));
+  return m;
+}
+
+/** The 12 third-placed teams, ranked best-first. The top 8 qualify for the Round of 32. */
+export function rankedThirds(
+  standings: Map<string, TeamStanding[]>,
+): TeamStanding[] {
+  const thirds: TeamStanding[] = [];
+  for (const table of standings.values()) {
+    if (table[2]) thirds.push(table[2]);
+  }
+  // Thirds come from different groups, so head-to-head never applies — pure overall sort.
+  thirds.sort(overallCmp);
+  return thirds;
+}
+
+// -------------------------------------------------------------------------------
+// Knockout bracket resolution
+// -------------------------------------------------------------------------------
+
+const ROUND_ORDER: Record<Round, number> = {
+  R32: 0,
+  R16: 1,
+  QF: 2,
+  SF: 3,
+  TP: 4,
+  F: 5,
+};
+
+/**
+ * Assign the qualified third-placed teams to the bracket's "third" slots.
+ * Uses augmenting-path bipartite matching so every third lands in a slot whose
+ * allowed-groups set permits it. (Approximates FIFA's official allocation table.)
+ */
+function assignThirds(
+  thirdSlots: { key: string; groups: string[] }[],
+  qualifiedGroups: { group: string }[],
+): Map<string, string> {
+  // match group letter -> slot key
+  const slotForGroup = new Map<string, string>();
+  const groupForSlot = new Map<string, string>();
+
+  const tryAssign = (group: string, seen: Set<string>): boolean => {
+    for (const slot of thirdSlots) {
+      if (!slot.groups.includes(group) || seen.has(slot.key)) continue;
+      seen.add(slot.key);
+      const occupant = groupForSlot.get(slot.key);
+      if (!occupant || tryAssign(occupant, seen)) {
+        groupForSlot.set(slot.key, group);
+        slotForGroup.set(group, slot.key);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  for (const q of qualifiedGroups) tryAssign(q.group, new Set());
+  return slotForGroup; // group -> slotKey
+}
+
+export interface BracketResult {
+  matches: ResolvedMatch[];
+  byId: Map<string, ResolvedMatch>;
+  qualifiedThirds: TeamStanding[]; // top 8
+}
+
+/**
+ * Resolve the whole knockout bracket from current group standings + user KO picks.
+ * Group winners/runners-up resolve automatically from standings; deeper rounds
+ * fill in as the user clicks a team to advance it.
+ */
+export function resolveBracket(
+  template: BracketMatch[],
+  standings: Map<string, TeamStanding[]>,
+  p: Predictions,
+): BracketResult {
+  const winnerOf = (g: string) => standings.get(g)?.[0]?.team ?? null;
+  const runnerUpOf = (g: string) => standings.get(g)?.[1]?.team ?? null;
+
+  const thirds = rankedThirds(standings);
+  const qualifiedThirds = thirds.slice(0, 8);
+
+  // Collect all "third" slots from the template.
+  const thirdSlots: { key: string; groups: string[] }[] = [];
+  for (const m of template) {
+    if (m.home.kind === "third")
+      thirdSlots.push({ key: `${m.id}:home`, groups: m.home.groups });
+    if (m.away.kind === "third")
+      thirdSlots.push({ key: `${m.id}:away`, groups: m.away.groups });
+  }
+  const groupToSlot = assignThirds(
+    thirdSlots,
+    qualifiedThirds.map((t) => ({ group: t.group })),
+  );
+  const slotToTeam = new Map<string, string>();
+  for (const t of qualifiedThirds) {
+    const slot = groupToSlot.get(t.group);
+    if (slot) slotToTeam.set(slot, t.team);
+  }
+
+  const ordered = [...template].sort(
+    (a, b) => ROUND_ORDER[a.round] - ROUND_ORDER[b.round],
+  );
+  const byId = new Map<string, ResolvedMatch>();
+
+  const resolveSlot = (m: BracketMatch, side: "home" | "away"): ResolvedSlot => {
+    const spec: SlotSpec = side === "home" ? m.home : m.away;
+    switch (spec.kind) {
+      case "winner":
+        return { team: winnerOf(spec.group), desc: `Winner ${spec.group}` };
+      case "runnerUp":
+        return { team: runnerUpOf(spec.group), desc: `2nd ${spec.group}` };
+      case "third": {
+        const team = slotToTeam.get(`${m.id}:${side}`) ?? null;
+        return { team, desc: `3rd ${spec.groups.join("/")}` };
+      }
+      case "matchWinner": {
+        const ref = byId.get(spec.match);
+        return { team: ref?.winner ?? null, desc: `Winner M${spec.match}` };
+      }
+      case "matchLoser": {
+        const ref = byId.get(spec.match);
+        let team: string | null = null;
+        if (ref && ref.winner) {
+          team =
+            ref.winner === ref.home.team
+              ? ref.away.team
+              : ref.home.team;
+        }
+        return { team, desc: `Loser M${spec.match}` };
+      }
+    }
+  };
+
+  for (const m of ordered) {
+    const home = resolveSlot(m, "home");
+    const away = resolveSlot(m, "away");
+    const pick = p.ko[m.id] ?? null;
+    let winner: string | null = null;
+    if (pick === "home") winner = home.team;
+    else if (pick === "away") winner = away.team;
+    const resolved: ResolvedMatch = {
+      id: m.id,
+      round: m.round,
+      home,
+      away,
+      winner,
+      pick,
+    };
+    byId.set(m.id, resolved);
+  }
+
+  // Return in original template order for stable rendering.
+  const matches = template.map((m) => byId.get(m.id)!);
+  return { matches, byId, qualifiedThirds };
+}

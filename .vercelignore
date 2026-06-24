@@ -1,0 +1,10 @@
+# Files not needed for the Vercel build (Vercel runs `npm install` + `next build` itself)
+node_modules
+.next
+out
+build
+coverage
+
+# local dev/test artifacts
+.playwright-mcp/
+*.log
