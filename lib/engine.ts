@@ -334,3 +334,18 @@ export function resolveBracket(
   const matches = template.map((m) => byId.get(m.id)!);
   return { matches, byId, qualifiedThirds };
 }
+
+/** Find the Round-of-32 match a team lands in and who it would face. */
+export function r32OpponentOf(
+  team: string,
+  result: BracketResult,
+): { matchId: string; opponent: string | null; opponentDesc: string } | null {
+  for (const m of result.matches) {
+    if (m.round !== "R32") continue;
+    if (m.home.team === team)
+      return { matchId: m.id, opponent: m.away.team, opponentDesc: m.away.desc };
+    if (m.away.team === team)
+      return { matchId: m.id, opponent: m.home.team, opponentDesc: m.home.desc };
+  }
+  return null;
+}

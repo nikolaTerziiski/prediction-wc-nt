@@ -6,8 +6,9 @@ import { allStandings, rankedThirds, resolveBracket } from "@/lib/engine";
 import { usePredictions } from "@/lib/usePredictions";
 import { GroupTable } from "@/components/GroupTable";
 import { Bracket } from "@/components/Bracket";
+import { Scenarios } from "@/components/Scenarios";
 
-type Tab = "groups" | "bracket";
+type Tab = "groups" | "bracket" | "scenarios";
 
 export default function Home() {
   const { predictions, setScore, setKoPick, resetAll, resetScores } =
@@ -60,6 +61,13 @@ export default function Home() {
             >
               Knockout
             </button>
+            <button
+              type="button"
+              onClick={() => setTab("scenarios")}
+              className={`rounded-md px-3 py-1 font-medium ${tab === "scenarios" ? "bg-emerald-500 text-white" : "text-zinc-600 dark:text-zinc-300"}`}
+            >
+              Scenarios
+            </button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -85,7 +93,7 @@ export default function Home() {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6">
-        {tab === "groups" ? (
+        {tab === "groups" && (
           <>
             <Legend />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -102,7 +110,9 @@ export default function Home() {
               ))}
             </div>
           </>
-        ) : (
+        )}
+
+        {tab === "bracket" && (
           <div className="space-y-6">
             <ThirdsPanel thirds={thirds} />
             <div>
@@ -119,6 +129,8 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {tab === "scenarios" && <Scenarios predictions={predictions} />}
 
         {DATA_NOTE && (
           <p className="mt-8 text-center text-xs text-zinc-400">{DATA_NOTE}</p>

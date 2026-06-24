@@ -3,7 +3,7 @@ import type { BracketMatch, Fixture, Group } from "./types";
 // Data cross-verified across Wikipedia, ESPN, Yahoo Sports and Sky Sports.
 // Group stage runs 11–27 June 2026; matchdays 1 & 2 are real results, later
 // matches (24 June onward at time of capture) are scheduled with no score yet.
-export const AS_OF = "24 June 2026";
+export const AS_OF = "25 June 2026 (Group B complete)";
 
 export const DATA_NOTE =
   "Group + match data cross-verified across Wikipedia, ESPN, Yahoo & Sky Sports. " +
@@ -24,6 +24,25 @@ export const GROUPS: Group[] = [
   { group: "K", teams: ["Portugal", "DR Congo", "Uzbekistan", "Colombia"] },
   { group: "L", teams: ["England", "Croatia", "Ghana", "Panama"] },
 ];
+
+// FIFA tri-letter codes, used for compact display (e.g. the scenario matrix).
+export const TEAM_CODE: Record<string, string> = {
+  Mexico: "MEX", "South Africa": "RSA", "South Korea": "KOR", "Czech Republic": "CZE",
+  Canada: "CAN", "Bosnia and Herzegovina": "BIH", Qatar: "QAT", Switzerland: "SUI",
+  Brazil: "BRA", Morocco: "MAR", Haiti: "HAI", Scotland: "SCO",
+  "United States": "USA", Paraguay: "PAR", Australia: "AUS", Turkey: "TUR",
+  Germany: "GER", "Curaçao": "CUW", "Ivory Coast": "CIV", Ecuador: "ECU",
+  Netherlands: "NED", Japan: "JPN", Sweden: "SWE", Tunisia: "TUN",
+  Belgium: "BEL", Egypt: "EGY", Iran: "IRN", "New Zealand": "NZL",
+  Spain: "ESP", "Cape Verde": "CPV", "Saudi Arabia": "KSA", Uruguay: "URU",
+  France: "FRA", Senegal: "SEN", Iraq: "IRQ", Norway: "NOR",
+  Argentina: "ARG", Algeria: "ALG", Austria: "AUT", Jordan: "JOR",
+  Portugal: "POR", "DR Congo": "COD", Uzbekistan: "UZB", Colombia: "COL",
+  England: "ENG", Croatia: "CRO", Ghana: "GHA", Panama: "PAN",
+};
+
+export const code = (team: string): string =>
+  TEAM_CODE[team] ?? team.slice(0, 3).toUpperCase();
 
 type Raw = [
   group: string,
@@ -48,8 +67,8 @@ const RAW: Raw[] = [
   ["B", 8, "2026-06-13", "Qatar", "Switzerland", 1, 1],
   ["B", 9, "2026-06-18", "Switzerland", "Bosnia and Herzegovina", 4, 1],
   ["B", 10, "2026-06-18", "Canada", "Qatar", 6, 0],
-  ["B", 11, "2026-06-24", "Switzerland", "Canada", null, null],
-  ["B", 12, "2026-06-24", "Bosnia and Herzegovina", "Qatar", null, null],
+  ["B", 11, "2026-06-24", "Switzerland", "Canada", 2, 1],
+  ["B", 12, "2026-06-24", "Bosnia and Herzegovina", "Qatar", 3, 1],
   // Group C
   ["C", 13, "2026-06-13", "Brazil", "Morocco", 1, 1],
   ["C", 14, "2026-06-13", "Scotland", "Haiti", 1, 0],
