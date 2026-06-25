@@ -3,11 +3,11 @@ import type { BracketMatch, CardCounts, Fixture, Group } from "./types";
 // Data cross-verified across Wikipedia, ESPN, Yahoo Sports and Sky Sports.
 // Group stage runs 11–27 June 2026; matchdays 1 & 2 are real results, later
 // matches (24 June onward at time of capture) are scheduled with no score yet.
-export const AS_OF = "25 June 2026 (Group B complete)";
+export const AS_OF = "25 June 2026 (Groups A, B & C complete)";
 
 export const DATA_NOTE =
   "Group + match data cross-verified across Wikipedia, ESPN, Yahoo & Sky Sports. " +
-  "Matchdays 1–2 are real results; later matches are scheduled — predict them yourself. " +
+  "Completed matches are real results; upcoming matches are scheduled — predict them yourself. " +
   "Tables use FIFA's official 2026 tiebreakers (head-to-head first, then overall GD/goals, " +
   "fair-play conduct, then FIFA World Ranking). Card data feeding the fair-play step is " +
   "illustrative, not a complete official record. FIFA World Rankings are the official " +
@@ -82,8 +82,8 @@ const RAW: Raw[] = [
   ["A", 2, "2026-06-11", "South Korea", "Czech Republic", 2, 1],
   ["A", 3, "2026-06-18", "Czech Republic", "South Africa", 1, 1],
   ["A", 4, "2026-06-18", "Mexico", "South Korea", 1, 0],
-  ["A", 5, "2026-06-24", "South Africa", "South Korea", null, null],
-  ["A", 6, "2026-06-24", "Czech Republic", "Mexico", null, null],
+  ["A", 5, "2026-06-24", "South Africa", "South Korea", 1, 0],
+  ["A", 6, "2026-06-24", "Czech Republic", "Mexico", 0, 3],
   // Group B
   ["B", 7, "2026-06-12", "Canada", "Bosnia and Herzegovina", 1, 1],
   ["B", 8, "2026-06-13", "Qatar", "Switzerland", 1, 1],
@@ -96,8 +96,8 @@ const RAW: Raw[] = [
   ["C", 14, "2026-06-13", "Scotland", "Haiti", 1, 0],
   ["C", 15, "2026-06-19", "Scotland", "Morocco", 0, 1],
   ["C", 16, "2026-06-19", "Brazil", "Haiti", 3, 0],
-  ["C", 17, "2026-06-24", "Morocco", "Haiti", null, null],
-  ["C", 18, "2026-06-24", "Scotland", "Brazil", null, null],
+  ["C", 17, "2026-06-24", "Morocco", "Haiti", 4, 2],
+  ["C", 18, "2026-06-24", "Scotland", "Brazil", 0, 3],
   // Group D
   ["D", 19, "2026-06-12", "United States", "Paraguay", 4, 1],
   ["D", 20, "2026-06-13", "Australia", "Turkey", 2, 0],
