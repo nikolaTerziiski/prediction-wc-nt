@@ -16,16 +16,23 @@ export function FixtureRow({
   fixture,
   predictions,
   onScore,
+  locked = false,
+  note = null,
 }: {
   fixture: Fixture;
   predictions: Predictions;
   onScore: (fixtureId: string, score: Score | null) => void;
+  /** When true, a real (played) result is read-only until the user unlocks editing. */
+  locked?: boolean;
+  /** Optional analysis note shown under the row (e.g. likely squad rotation). */
+  note?: string | null;
 }) {
   const [showStats, setShowStats] = useState(false);
   const eff = effectiveScore(fixture, predictions);
   const played = isPlayed(fixture);
   const overridden = !!predictions.scores[fixture.id];
   const isPrediction = eff != null && (!played || overridden);
+  const inputsDisabled = locked && played;
 
   const update = (side: "home" | "away", raw: string) => {
     const parsed = raw === "" ? null : parseInt(raw, 10);
@@ -52,7 +59,7 @@ export function FixtureRow({
   };
 
   const inputCls =
-    "w-9 h-9 rounded-md border border-black/15 dark:border-white/20 bg-white dark:bg-zinc-900 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
+    "w-9 h-9 rounded-md border border-black/15 dark:border-white/20 bg-white dark:bg-zinc-900 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/60 disabled:cursor-not-allowed disabled:opacity-55 disabled:bg-zinc-100 dark:disabled:bg-zinc-800";
 
   return (
     <div>
@@ -73,6 +80,7 @@ export function FixtureRow({
         className={inputCls}
         value={eff ? eff.home : ""}
         placeholder="–"
+        disabled={inputsDisabled}
         onChange={(e) => update("home", e.target.value)}
       />
       <span className="text-zinc-400">:</span>
@@ -84,6 +92,7 @@ export function FixtureRow({
         className={inputCls}
         value={eff ? eff.away : ""}
         placeholder="–"
+        disabled={inputsDisabled}
         onChange={(e) => update("away", e.target.value)}
       />
 
@@ -103,16 +112,26 @@ export function FixtureRow({
         ) : null}
       </span>
 
-      <button
-        type="button"
-        aria-label="Reset to actual / clear prediction"
-        title={overridden ? "Clear prediction" : "Clear"}
-        disabled={!overridden}
-        onClick={() => onScore(fixture.id, null)}
-        className="w-6 shrink-0 text-zinc-400 enabled:hover:text-rose-500 disabled:opacity-25"
-      >
-        ↺
-      </button>
+      {inputsDisabled ? (
+        <span
+          className="w-6 shrink-0 text-center text-zinc-400"
+          title="Final result — turn on “Edit results” to change"
+          aria-label="Locked result"
+        >
+          🔒
+        </span>
+      ) : (
+        <button
+          type="button"
+          aria-label="Reset to actual / clear prediction"
+          title={overridden ? "Clear prediction" : "Clear"}
+          disabled={!overridden}
+          onClick={() => onScore(fixture.id, null)}
+          className="w-6 shrink-0 text-zinc-400 enabled:hover:text-rose-500 disabled:opacity-25"
+        >
+          ↺
+        </button>
+      )}
 
       <button
         type="button"
@@ -128,6 +147,12 @@ export function FixtureRow({
         📊
       </button>
     </div>
+
+      {note && (
+        <div className="mb-1 ml-14 -mt-0.5 text-[11px] text-amber-600 dark:text-amber-400">
+          {note}
+        </div>
+      )}
 
       {showStats && played && (
         <MatchStats home={fixture.home} away={fixture.away} />

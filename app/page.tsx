@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AS_OF, BRACKET, DATA_NOTE, FIXTURES, GROUPS } from "@/lib/data";
 import { allStandings, rankedThirds, resolveBracket } from "@/lib/engine";
+import { groupProspects, type TeamProspect } from "@/lib/scenarios";
 import { usePredictions } from "@/lib/usePredictions";
 import { GroupTable } from "@/components/GroupTable";
 import { Bracket } from "@/components/Bracket";
@@ -14,6 +15,7 @@ export default function Home() {
   const { predictions, setScore, setKoPick, resetAll, resetScores } =
     usePredictions();
   const [tab, setTab] = useState<Tab>("groups");
+  const [editUnlocked, setEditUnlocked] = useState(false);
 
   const standings = useMemo(
     () => allStandings(GROUPS, FIXTURES, predictions),
@@ -28,6 +30,11 @@ export default function Home() {
     () => resolveBracket(BRACKET, standings, predictions),
     [standings, predictions],
   );
+  const prospects = useMemo(() => {
+    const m = new Map<string, Map<string, TeamProspect>>();
+    for (const g of GROUPS) m.set(g.group, groupProspects(g.group, predictions));
+    return m;
+  }, [predictions]);
 
   const predictionCount =
     Object.keys(predictions.scores).length + Object.keys(predictions.ko).length;
@@ -76,6 +83,18 @@ export default function Home() {
             </span>
             <button
               type="button"
+              onClick={() => setEditUnlocked((v) => !v)}
+              title="Played results are locked by default. Unlock to override them for what-ifs."
+              className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                editUnlocked
+                  ? "border-amber-400 bg-amber-400/10 text-amber-600 dark:text-amber-400"
+                  : "border-black/10 dark:border-white/15 hover:bg-black/5 dark:hover:bg-white/10"
+              }`}
+            >
+              {editUnlocked ? "🔓 Editing results" : "🔒 Results locked"}
+            </button>
+            <button
+              type="button"
               onClick={resetScores}
               className="rounded-md border border-black/10 dark:border-white/15 px-2.5 py-1 text-xs font-medium hover:bg-black/5 dark:hover:bg-white/10"
             >
@@ -106,6 +125,9 @@ export default function Home() {
                   fixtures={FIXTURES}
                   predictions={predictions}
                   qualifyingThirds={qualifyingThirds}
+                  prospects={prospects.get(g.group) ?? new Map()}
+                  bracket={bracket}
+                  locked={!editUnlocked}
                   onScore={setScore}
                 />
               ))}

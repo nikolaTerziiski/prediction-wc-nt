@@ -186,3 +186,72 @@ function ord(n: number): string {
   if (n === 3) return "rd";
   return "th";
 }
+
+// ---- Qualification prospects ---------------------------------------------------
+
+export type ProspectStatus =
+  | "winner" // guaranteed to finish 1st
+  | "qualified" // guaranteed top 2
+  | "contention" // can still reach top 2
+  | "third-race" // best case is 3rd (depends on best-third race)
+  | "eliminated"; // cannot finish in the top 3
+
+export interface TeamProspect {
+  team: string;
+  status: ProspectStatus;
+  guaranteedTop2: boolean;
+  nextFixtureId: string | null; // remaining GROUP fixture, if any
+  nextOpponent: string | null;
+  nextDate: string | null;
+  /** Already through with a group game still to play → likely to rest/rotate. */
+  rotationLikely: boolean;
+}
+
+/**
+ * Per-team qualification outlook for a group, derived by enumerating every
+ * remaining-match outcome. Flags teams already guaranteed a top-2 place — useful
+ * because a clinched side may rest/rotate players in a dead-rubber final group
+ * game. For a completed group this collapses to each team's final rank.
+ */
+export function groupProspects(
+  group: string,
+  base: Predictions,
+): Map<string, TeamProspect> {
+  const set = groupScenarios(group, base);
+  const ranks = new Map<string, number[]>();
+  for (const sc of set.scenarios) {
+    sc.table.forEach((t, i) => {
+      const arr = ranks.get(t.team);
+      if (arr) arr.push(i + 1);
+      else ranks.set(t.team, [i + 1]);
+    });
+  }
+
+  const out = new Map<string, TeamProspect>();
+  for (const [team, rs] of ranks) {
+    const best = Math.min(...rs);
+    const worst = Math.max(...rs);
+    let status: ProspectStatus;
+    if (worst === 1) status = "winner";
+    else if (worst <= 2) status = "qualified";
+    else if (best <= 2) status = "contention";
+    else if (best <= 3) status = "third-race";
+    else status = "eliminated";
+
+    const nf =
+      set.remaining.find((r) => r.home === team || r.away === team) ?? null;
+    const nextOpponent = nf ? (nf.home === team ? nf.away : nf.home) : null;
+    const nextDate = nf ? (FIXTURES.find((f) => f.id === nf.id)?.date ?? null) : null;
+
+    out.set(team, {
+      team,
+      status,
+      guaranteedTop2: worst <= 2,
+      nextFixtureId: nf?.id ?? null,
+      nextOpponent,
+      nextDate,
+      rotationLikely: worst <= 2 && nf != null,
+    });
+  }
+  return out;
+}
