@@ -96,6 +96,7 @@ export default function Home() {
         {tab === "groups" && (
           <>
             <Legend />
+            <TiebreakerInfo />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {GROUPS.map((g) => (
                 <GroupTable
@@ -120,10 +121,19 @@ export default function Home() {
                 Projected knockout bracket
               </h2>
               <p className="mb-3 text-xs text-zinc-500">
-                Group winners / runners-up fill in automatically from the tables.
-                Click a team to advance it to the next round and reveal who it
-                would play. Third-place slotting approximates FIFA&apos;s
-                allocation table.
+                <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                  New for 2026:
+                </span>{" "}
+                32 teams reach the knockouts (12 group winners + 12 runners-up +
+                8 best third-placed), so the bracket begins with a{" "}
+                <span className="font-medium text-zinc-600 dark:text-zinc-300">
+                  Round of 32
+                </span>{" "}
+                — 32 teams playing 16 matches. The Round of 16 is the{" "}
+                <em>second</em> round. Group winners / runners-up fill in
+                automatically from the tables; click a team to advance it and
+                reveal who it would play. Third-place slotting approximates
+                FIFA&apos;s allocation table.
               </p>
               <Bracket matches={bracket.matches} onPick={togglePick(setKoPick, predictions)} />
             </div>
@@ -149,6 +159,51 @@ function togglePick(
     const current = predictions.ko[matchId];
     setKoPick(matchId, current === side ? null : side);
   };
+}
+
+const TIEBREAKERS: { label: string; detail: string }[] = [
+  { label: "Points", detail: "across all 3 group matches" },
+  { label: "Head-to-head points", detail: "between the tied teams only" },
+  { label: "Head-to-head goal difference", detail: "between the tied teams" },
+  { label: "Head-to-head goals scored", detail: "between the tied teams" },
+  { label: "Overall goal difference", detail: "across all group matches" },
+  { label: "Overall goals scored", detail: "across all group matches" },
+  { label: "Fair-play / conduct score", detail: "fewest card deductions" },
+  { label: "FIFA World Ranking", detail: "11 June 2026 — replaces drawing of lots" },
+];
+
+function TiebreakerInfo() {
+  return (
+    <details className="mb-4 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-950 text-sm">
+      <summary className="cursor-pointer select-none px-4 py-2.5 font-medium">
+        How ties are broken{" "}
+        <span className="font-normal text-zinc-500">— FIFA 2026 rules</span>
+      </summary>
+      <div className="border-t border-black/10 dark:border-white/10 px-4 py-3">
+        <p className="mb-2 text-xs text-zinc-500">
+          New for 2026, FIFA breaks ties{" "}
+          <span className="font-medium text-zinc-600 dark:text-zinc-300">
+            head-to-head first
+          </span>{" "}
+          (the result between level teams), before overall goal difference — the
+          reverse of every previous World Cup. Applied in order until the tie breaks:
+        </p>
+        <ol className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+          {TIEBREAKERS.map((t, i) => (
+            <li key={t.label} className="flex gap-2 text-xs">
+              <span className="w-4 shrink-0 font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                {i + 1}
+              </span>
+              <span>
+                <span className="font-medium">{t.label}</span>{" "}
+                <span className="text-zinc-500">— {t.detail}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </details>
+  );
 }
 
 function Legend() {

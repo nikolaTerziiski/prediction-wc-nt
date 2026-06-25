@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { effectiveScore, isPlayed } from "@/lib/engine";
 import type { Fixture, Predictions, Score } from "@/lib/types";
+import { MatchStats } from "./MatchStats";
 
 function fmtDate(iso: string): string {
   const d = new Date(iso + "T00:00:00");
@@ -19,6 +21,7 @@ export function FixtureRow({
   predictions: Predictions;
   onScore: (fixtureId: string, score: Score | null) => void;
 }) {
+  const [showStats, setShowStats] = useState(false);
   const eff = effectiveScore(fixture, predictions);
   const played = isPlayed(fixture);
   const overridden = !!predictions.scores[fixture.id];
@@ -52,6 +55,7 @@ export function FixtureRow({
     "w-9 h-9 rounded-md border border-black/15 dark:border-white/20 bg-white dark:bg-zinc-900 text-center text-sm font-semibold tabular-nums focus:outline-none focus:ring-2 focus:ring-emerald-500/60";
 
   return (
+    <div>
     <div className="flex items-center gap-2 py-1.5 text-sm">
       <span className="w-12 shrink-0 text-xs text-zinc-500 tabular-nums">
         {fmtDate(fixture.date)}
@@ -109,6 +113,25 @@ export function FixtureRow({
       >
         ↺
       </button>
+
+      <button
+        type="button"
+        aria-label="Toggle match statistics"
+        title={played ? "Match stats" : "Stats available once played"}
+        aria-expanded={showStats}
+        disabled={!played}
+        onClick={() => setShowStats((v) => !v)}
+        className={`w-6 shrink-0 disabled:opacity-20 ${
+          showStats ? "text-emerald-500" : "text-zinc-400 enabled:hover:text-emerald-500"
+        }`}
+      >
+        📊
+      </button>
+    </div>
+
+      {showStats && played && (
+        <MatchStats home={fixture.home} away={fixture.away} />
+      )}
     </div>
   );
 }

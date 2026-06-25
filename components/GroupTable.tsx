@@ -57,7 +57,18 @@ export function GroupTable({
               >
                 <td className="px-4 py-1.5">
                   <span className="text-zinc-400 tabular-nums mr-2">{s.rank}</span>
-                  <span className="font-medium">{s.team}</span>
+                  <span
+                    className="font-medium"
+                    title={`FIFA World Ranking #${s.worldRanking}${
+                      s.yellow || s.red
+                        ? ` · fair-play ${s.fairPlay} (${s.yellow}Y${
+                            s.red ? ` ${s.red}R` : ""
+                          })`
+                        : ""
+                    }`}
+                  >
+                    {s.team}
+                  </span>
                   {s.rank === 3 && (
                     <span
                       className={`ml-2 text-[10px] uppercase tracking-wide ${thirdQ ? "text-sky-500" : "text-amber-500"}`}

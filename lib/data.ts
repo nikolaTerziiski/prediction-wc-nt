@@ -1,4 +1,4 @@
-import type { BracketMatch, Fixture, Group } from "./types";
+import type { BracketMatch, CardCounts, Fixture, Group } from "./types";
 
 // Data cross-verified across Wikipedia, ESPN, Yahoo Sports and Sky Sports.
 // Group stage runs 11–27 June 2026; matchdays 1 & 2 are real results, later
@@ -8,7 +8,10 @@ export const AS_OF = "25 June 2026 (Group B complete)";
 export const DATA_NOTE =
   "Group + match data cross-verified across Wikipedia, ESPN, Yahoo & Sky Sports. " +
   "Matchdays 1–2 are real results; later matches are scheduled — predict them yourself. " +
-  "Third-placed slotting in the bracket approximates FIFA's official allocation table.";
+  "Tables use FIFA's official 2026 tiebreakers (head-to-head first, then overall GD/goals, " +
+  "fair-play conduct, then FIFA World Ranking). Card data feeding the fair-play step is " +
+  "illustrative, not a complete official record. FIFA World Rankings are the official " +
+  "11 June 2026 update. Third-placed slotting in the bracket approximates FIFA's allocation table.";
 
 export const GROUPS: Group[] = [
   { group: "A", teams: ["Mexico", "South Africa", "South Korea", "Czech Republic"] },
@@ -43,6 +46,25 @@ export const TEAM_CODE: Record<string, string> = {
 
 export const code = (team: string): string =>
   TEAM_CODE[team] ?? team.slice(0, 3).toUpperCase();
+
+// FIFA/Coca-Cola Men's World Ranking position (official update of 11 June 2026).
+// Used as the LAST-RESORT group-stage tiebreaker (criterion 7) for 2026, which
+// replaced the historical "drawing of lots". Lower number = better ranked.
+export const TEAM_RANKING: Record<string, number> = {
+  Argentina: 1, Spain: 2, France: 3, England: 4, Portugal: 5,
+  Brazil: 6, Morocco: 7, Netherlands: 8, Belgium: 9, Germany: 10,
+  Croatia: 11, Colombia: 13, Mexico: 14, Senegal: 15, Uruguay: 16,
+  "United States": 17, Japan: 18, Switzerland: 19, Iran: 20, Turkey: 22,
+  Ecuador: 23, Austria: 24, "South Korea": 25, Australia: 27, Algeria: 28,
+  Egypt: 29, Canada: 30, Norway: 31, "Ivory Coast": 33, Panama: 34,
+  Sweden: 38, "Czech Republic": 40, Paraguay: 41, Scotland: 42, Tunisia: 45,
+  "DR Congo": 46, Uzbekistan: 50, Qatar: 56, Iraq: 57, "South Africa": 60,
+  "Saudi Arabia": 61, Jordan: 63, "Bosnia and Herzegovina": 64, "Cape Verde": 67,
+  Ghana: 73, "Curaçao": 82, Haiti: 83, "New Zealand": 85,
+};
+
+/** FIFA world-ranking position for a team (999 if unknown, so it sorts last). */
+export const rankingOf = (team: string): number => TEAM_RANKING[team] ?? 999;
 
 type Raw = [
   group: string,
@@ -141,6 +163,50 @@ const RAW: Raw[] = [
   ["L", 72, "2026-06-27", "Croatia", "Ghana", null, null],
 ];
 
+// Illustrative disciplinary data for the FIFA fair-play tiebreaker (criterion 6).
+// Shorthand per played match: [homeYellow, homeRed, awayYellow, awayRed].
+// This is a PARTIAL, illustrative sample — not a complete official card record —
+// just enough to exercise the conduct-score tiebreaker. Matches not listed are
+// treated as card-free. (secondYellow / yellow+red cases default to 0 here.)
+type CardShorthand = [hy: number, hr: number, ay: number, ar: number];
+const CARDS: Record<string, CardShorthand> = {
+  // Group A
+  M1: [2, 0, 3, 0], M2: [1, 0, 2, 0], M3: [3, 1, 2, 0], M4: [2, 0, 4, 0],
+  // Group B
+  M7: [1, 0, 1, 0], M9: [2, 0, 3, 1], M10: [0, 0, 3, 0], M11: [3, 0, 2, 0], M12: [2, 0, 2, 0],
+  // Group C
+  M13: [1, 0, 2, 0], M15: [2, 0, 1, 0], M16: [1, 0, 3, 1],
+  // Group D
+  M19: [2, 0, 2, 0], M21: [1, 0, 3, 0], M22: [4, 1, 2, 0],
+  // Group E
+  M25: [0, 0, 2, 0], M27: [2, 0, 3, 0], M28: [3, 0, 3, 1],
+  // Group F
+  M31: [2, 0, 1, 0], M33: [1, 0, 2, 0], M34: [3, 1, 1, 0],
+  // Group G
+  M37: [2, 0, 2, 0], M39: [3, 0, 4, 1], M40: [2, 0, 2, 0],
+  // Group H
+  M43: [3, 0, 3, 0], M45: [1, 0, 2, 0], M46: [2, 0, 2, 0],
+  // Group I
+  M49: [1, 0, 2, 0], M51: [2, 0, 3, 1], M52: [3, 0, 2, 0],
+  // Group J
+  M55: [2, 1, 3, 0], M57: [1, 0, 2, 0], M58: [3, 0, 3, 0],
+  // Group K
+  M61: [2, 0, 2, 0], M63: [1, 0, 3, 0], M64: [2, 0, 2, 1],
+  // Group L
+  M67: [3, 0, 4, 0], M69: [2, 1, 2, 0], M70: [3, 0, 2, 0],
+};
+
+function cardsFrom(
+  s: CardShorthand | undefined,
+  side: "home" | "away",
+): CardCounts | undefined {
+  if (!s) return undefined;
+  const yellow = side === "home" ? s[0] : s[2];
+  const directRed = side === "home" ? s[1] : s[3];
+  if (!yellow && !directRed) return undefined;
+  return { yellow, secondYellow: 0, directRed, yellowAndRed: 0 };
+}
+
 export const FIXTURES: Fixture[] = RAW.map(([group, n, date, home, away, hs, as]) => ({
   id: `M${n}`,
   group,
@@ -151,6 +217,8 @@ export const FIXTURES: Fixture[] = RAW.map(([group, n, date, home, away, hs, as]
   homeScore: hs,
   awayScore: as,
   status: hs != null && as != null ? "played" : "scheduled",
+  homeCards: cardsFrom(CARDS[`M${n}`], "home"),
+  awayCards: cardsFrom(CARDS[`M${n}`], "away"),
 }));
 
 // ---- Knockout bracket template (official 2026 structure, matches 73–104) -------

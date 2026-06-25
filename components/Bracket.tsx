@@ -94,8 +94,11 @@ export function Bracket({
           return (
             <div key={round} className="flex flex-col gap-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {ROUND_TITLES[round]}
-                <span className="ml-1 text-zinc-400">({roundMatches.length})</span>
+                <span className="block">{ROUND_TITLES[round]}</span>
+                <span className="block text-[10px] font-normal normal-case tracking-normal text-zinc-400">
+                  {roundMatches.length * 2} teams · {roundMatches.length}{" "}
+                  {roundMatches.length === 1 ? "match" : "matches"}
+                </span>
               </h4>
               <div className="flex flex-1 flex-col justify-around gap-3">
                 {roundMatches.map((m) => (

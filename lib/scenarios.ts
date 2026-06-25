@@ -141,7 +141,9 @@ export function groupScenarios(
           j - i === 2
             ? `${i + 1}${ord(i + 1)}/${i + 2}${ord(i + 2)}`
             : `${i + 1}${ord(i + 1)}–${j}${ord(j)}`;
-        notes.push(`${ranks}: ${teams} level on ${table[i].points} pts → goals decide`);
+        notes.push(
+          `${ranks}: ${teams} level on ${table[i].points} pts → head-to-head, then goals decide`,
+        );
       }
       i = j;
     }
