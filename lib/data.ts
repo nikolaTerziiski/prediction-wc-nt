@@ -3,7 +3,7 @@ import type { BracketMatch, Fixture, Group } from "./types";
 // Data cross-verified across Wikipedia, ESPN, Yahoo Sports and Sky Sports.
 // Group stage runs 11–27 June 2026; matchdays 1 & 2 are real results, later
 // matches (24 June onward at time of capture) are scheduled with no score yet.
-export const AS_OF = "25 June 2026 (Group B complete)";
+export const AS_OF = "26 June 2026 — Groups A–F complete";
 
 export const DATA_NOTE =
   "Group + match data cross-verified across Wikipedia, ESPN, Yahoo & Sky Sports. " +
@@ -60,8 +60,8 @@ const RAW: Raw[] = [
   ["A", 2, "2026-06-11", "South Korea", "Czech Republic", 2, 1],
   ["A", 3, "2026-06-18", "Czech Republic", "South Africa", 1, 1],
   ["A", 4, "2026-06-18", "Mexico", "South Korea", 1, 0],
-  ["A", 5, "2026-06-24", "South Africa", "South Korea", null, null],
-  ["A", 6, "2026-06-24", "Czech Republic", "Mexico", null, null],
+  ["A", 5, "2026-06-24", "South Africa", "South Korea", 1, 0],
+  ["A", 6, "2026-06-24", "Czech Republic", "Mexico", 0, 3],
   // Group B
   ["B", 7, "2026-06-12", "Canada", "Bosnia and Herzegovina", 1, 1],
   ["B", 8, "2026-06-13", "Qatar", "Switzerland", 1, 1],
@@ -74,29 +74,29 @@ const RAW: Raw[] = [
   ["C", 14, "2026-06-13", "Scotland", "Haiti", 1, 0],
   ["C", 15, "2026-06-19", "Scotland", "Morocco", 0, 1],
   ["C", 16, "2026-06-19", "Brazil", "Haiti", 3, 0],
-  ["C", 17, "2026-06-24", "Morocco", "Haiti", null, null],
-  ["C", 18, "2026-06-24", "Scotland", "Brazil", null, null],
+  ["C", 17, "2026-06-24", "Morocco", "Haiti", 4, 2],
+  ["C", 18, "2026-06-24", "Scotland", "Brazil", 0, 3],
   // Group D
   ["D", 19, "2026-06-12", "United States", "Paraguay", 4, 1],
   ["D", 20, "2026-06-13", "Australia", "Turkey", 2, 0],
   ["D", 21, "2026-06-19", "United States", "Australia", 2, 0],
   ["D", 22, "2026-06-19", "Turkey", "Paraguay", 0, 1],
-  ["D", 23, "2026-06-25", "Turkey", "United States", null, null],
-  ["D", 24, "2026-06-25", "Paraguay", "Australia", null, null],
+  ["D", 23, "2026-06-25", "Turkey", "United States", 3, 2],
+  ["D", 24, "2026-06-25", "Paraguay", "Australia", 0, 0],
   // Group E
   ["E", 25, "2026-06-14", "Germany", "Curaçao", 7, 1],
   ["E", 26, "2026-06-14", "Ivory Coast", "Ecuador", 1, 0],
   ["E", 27, "2026-06-20", "Germany", "Ivory Coast", 2, 1],
   ["E", 28, "2026-06-20", "Ecuador", "Curaçao", 0, 0],
-  ["E", 29, "2026-06-25", "Curaçao", "Ivory Coast", null, null],
-  ["E", 30, "2026-06-25", "Ecuador", "Germany", null, null],
+  ["E", 29, "2026-06-25", "Curaçao", "Ivory Coast", 0, 2],
+  ["E", 30, "2026-06-25", "Ecuador", "Germany", 2, 1],
   // Group F
   ["F", 31, "2026-06-14", "Netherlands", "Japan", 2, 2],
   ["F", 32, "2026-06-15", "Sweden", "Tunisia", 5, 1],
   ["F", 33, "2026-06-20", "Netherlands", "Sweden", 5, 1],
   ["F", 34, "2026-06-21", "Tunisia", "Japan", 0, 4],
-  ["F", 35, "2026-06-25", "Tunisia", "Netherlands", null, null],
-  ["F", 36, "2026-06-25", "Japan", "Sweden", null, null],
+  ["F", 35, "2026-06-25", "Tunisia", "Netherlands", 1, 3],
+  ["F", 36, "2026-06-25", "Japan", "Sweden", 1, 1],
   // Group G
   ["G", 37, "2026-06-15", "Belgium", "Egypt", 1, 1],
   ["G", 38, "2026-06-16", "Iran", "New Zealand", 2, 2],
