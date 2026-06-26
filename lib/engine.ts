@@ -1,5 +1,7 @@
+import { rankingOf } from "./data";
 import type {
   BracketMatch,
+  CardCounts,
   Fixture,
   Group,
   Predictions,
@@ -34,7 +36,7 @@ export function isPlayed(f: Fixture): boolean {
 // Group standings
 // -------------------------------------------------------------------------------
 
-function blank(team: string, group: string): TeamStanding {
+function blank(team: string, group: string, worldRanking: number): TeamStanding {
   return {
     team,
     group,
@@ -47,20 +49,31 @@ function blank(team: string, group: string): TeamStanding {
     gd: 0,
     points: 0,
     rank: 0,
+    fairPlay: 0,
+    yellow: 0,
+    red: 0,
+    worldRanking,
   };
 }
 
-function overallCmp(a: TeamStanding, b: TeamStanding): number {
-  return (
-    b.points - a.points ||
-    b.gd - a.gd ||
-    b.gf - a.gf ||
-    a.team.localeCompare(b.team)
-  );
+/** FIFA fair-play deduction for one team's cards in one match (yellow −1, 2nd-yellow −3, direct red −4, yellow+red −5). */
+function conductDeduction(c: CardCounts): number {
+  return c.yellow + 3 * c.secondYellow + 4 * c.directRed + 5 * c.yellowAndRed;
 }
 
-function eqOverall(a: TeamStanding, b: TeamStanding): boolean {
-  return a.points === b.points && a.gd === b.gd && a.gf === b.gf;
+/**
+ * Tiebreaker once head-to-head can no longer separate teams: FIFA criteria 4–7 —
+ * overall goal difference, overall goals scored, fair-play conduct score, then the
+ * FIFA/Coca-Cola World Ranking (lower = better). Alphabetical is a final safety net.
+ */
+function overallTiebreak(a: TeamStanding, b: TeamStanding): number {
+  return (
+    b.gd - a.gd ||
+    b.gf - a.gf ||
+    b.fairPlay - a.fairPlay ||
+    a.worldRanking - b.worldRanking ||
+    a.team.localeCompare(b.team)
+  );
 }
 
 /** Mini head-to-head table among a subset of teams. */
@@ -92,39 +105,76 @@ function headToHead(
   return m;
 }
 
-/** Apply FIFA tiebreakers (overall pts/gd/gf, then head-to-head among tied) and assign ranks. */
+/**
+ * Resolve a block of teams that are level on points using the official FIFA 2026
+ * order: HEAD-TO-HEAD FIRST (points, then GD, then goals among the tied teams),
+ * re-applied to any still-level subset; only then overall GD/goals, fair-play and
+ * the FIFA World Ranking. This is the 2026 reversal of the historic "overall GD
+ * first" rule — the result of the match(es) between level teams decides first.
+ */
+function resolveTied(
+  block: TeamStanding[],
+  fixtures: Fixture[],
+  scoreOf: (f: Fixture) => Score | null,
+): TeamStanding[] {
+  if (block.length <= 1) return block;
+
+  // Head-to-head mini-table among EXACTLY these still-tied teams.
+  const h2h = headToHead(
+    block.map((s) => s.team),
+    fixtures,
+    scoreOf,
+  );
+
+  const sorted = [...block].sort((x, y) => {
+    const hx = h2h.get(x.team)!;
+    const hy = h2h.get(y.team)!;
+    return hy.points - hx.points || hy.gd - hx.gd || hy.gf - hx.gf;
+  });
+
+  // Partition into sub-blocks equal on the head-to-head key.
+  const groups: TeamStanding[][] = [];
+  for (const s of sorted) {
+    const last = groups[groups.length - 1];
+    const hs = h2h.get(s.team)!;
+    if (last) {
+      const hl = h2h.get(last[0].team)!;
+      if (hs.points === hl.points && hs.gd === hl.gd && hs.gf === hl.gf) {
+        last.push(s);
+        continue;
+      }
+    }
+    groups.push([s]);
+  }
+
+  if (groups.length > 1) {
+    // Head-to-head separated some teams — re-apply the FULL chain (recomputing
+    // head-to-head) within each sub-block that is still tied.
+    return groups.flatMap((g) => resolveTied(g, fixtures, scoreOf));
+  }
+
+  // Head-to-head cannot separate them → fall through to overall GD/goals, fair-play,
+  // then FIFA World Ranking (which is unique, so this fully resolves the order).
+  return [...block].sort(overallTiebreak);
+}
+
+/** Apply FIFA 2026 tiebreakers (points → head-to-head → overall → fair-play → ranking) and assign ranks. */
 function rankTable(
   arr: TeamStanding[],
   fixtures: Fixture[],
   scoreOf: (f: Fixture) => Score | null,
 ): void {
-  arr.sort(overallCmp);
+  const sorted = [...arr].sort((a, b) => b.points - a.points);
+  const result: TeamStanding[] = [];
   let i = 0;
-  while (i < arr.length) {
+  while (i < sorted.length) {
     let j = i + 1;
-    while (j < arr.length && eqOverall(arr[i], arr[j])) j++;
-    if (j - i > 1) {
-      const block = arr.slice(i, j);
-      const h2h = headToHead(
-        block.map((s) => s.team),
-        fixtures,
-        scoreOf,
-      );
-      block.sort((x, y) => {
-        const hx = h2h.get(x.team)!;
-        const hy = h2h.get(y.team)!;
-        return (
-          hy.points - hx.points ||
-          hy.gd - hx.gd ||
-          hy.gf - hx.gf ||
-          x.team.localeCompare(y.team)
-        );
-      });
-      for (let k = 0; k < block.length; k++) arr[i + k] = block[k];
-    }
+    while (j < sorted.length && sorted[j].points === sorted[i].points) j++;
+    result.push(...resolveTied(sorted.slice(i, j), fixtures, scoreOf));
     i = j;
   }
-  arr.forEach((s, idx) => (s.rank = idx + 1));
+  result.forEach((s, idx) => (s.rank = idx + 1));
+  for (let k = 0; k < result.length; k++) arr[k] = result[k];
 }
 
 /** Standings for a single group. */
@@ -132,10 +182,11 @@ export function groupStandings(
   group: Group,
   fixtures: Fixture[],
   p: Predictions,
+  ranking: (team: string) => number = rankingOf,
 ): TeamStanding[] {
   const scoreOf = (f: Fixture) => effectiveScore(f, p);
   const table = new Map<string, TeamStanding>();
-  for (const t of group.teams) table.set(t, blank(t, group.group));
+  for (const t of group.teams) table.set(t, blank(t, group.group, ranking(t)));
   const groupFixtures = fixtures.filter((f) => f.group === group.group);
   for (const f of groupFixtures) {
     const s = scoreOf(f);
@@ -163,6 +214,17 @@ export function groupStandings(
       h.points++;
       a.points++;
     }
+    // Fair-play (real cards from played matches; predictions don't add cards).
+    if (f.homeCards) {
+      h.yellow += f.homeCards.yellow;
+      h.red += f.homeCards.directRed + f.homeCards.secondYellow + f.homeCards.yellowAndRed;
+      h.fairPlay -= conductDeduction(f.homeCards);
+    }
+    if (f.awayCards) {
+      a.yellow += f.awayCards.yellow;
+      a.red += f.awayCards.directRed + f.awayCards.secondYellow + f.awayCards.yellowAndRed;
+      a.fairPlay -= conductDeduction(f.awayCards);
+    }
   }
   const arr = [...table.values()];
   for (const s of arr) s.gd = s.gf - s.ga;
@@ -175,13 +237,18 @@ export function allStandings(
   groups: Group[],
   fixtures: Fixture[],
   p: Predictions,
+  ranking: (team: string) => number = rankingOf,
 ): Map<string, TeamStanding[]> {
   const m = new Map<string, TeamStanding[]>();
-  for (const g of groups) m.set(g.group, groupStandings(g, fixtures, p));
+  for (const g of groups) m.set(g.group, groupStandings(g, fixtures, p, ranking));
   return m;
 }
 
-/** The 12 third-placed teams, ranked best-first. The top 8 qualify for the Round of 32. */
+/**
+ * The 12 third-placed teams, ranked best-first. The top 8 qualify for the Round of 32.
+ * Thirds come from different groups, so head-to-head never applies — FIFA ranks them by
+ * points, overall GD, overall goals, fair-play conduct, then the FIFA World Ranking.
+ */
 export function rankedThirds(
   standings: Map<string, TeamStanding[]>,
 ): TeamStanding[] {
@@ -189,8 +256,15 @@ export function rankedThirds(
   for (const table of standings.values()) {
     if (table[2]) thirds.push(table[2]);
   }
-  // Thirds come from different groups, so head-to-head never applies — pure overall sort.
-  thirds.sort(overallCmp);
+  thirds.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.gd - a.gd ||
+      b.gf - a.gf ||
+      b.fairPlay - a.fairPlay ||
+      a.worldRanking - b.worldRanking ||
+      a.team.localeCompare(b.team),
+  );
   return thirds;
 }
 

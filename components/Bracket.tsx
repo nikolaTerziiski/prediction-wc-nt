@@ -35,14 +35,22 @@ function SlotRow({
         "flex w-full items-center justify-between gap-2 px-2.5 py-1.5 text-left text-sm transition-colors",
         selectable ? "cursor-pointer hover:bg-emerald-500/10" : "cursor-default",
         isWinner
-          ? "bg-emerald-500/15 font-semibold text-emerald-700 dark:text-emerald-300"
-          : "",
+          ? "bg-emerald-500/20 font-semibold text-emerald-700 dark:text-emerald-300"
+          : team
+            ? "bg-emerald-500/[0.07] text-emerald-800 dark:text-emerald-200"
+            : "",
       ].join(" ")}
     >
-      <span className={team ? "truncate" : "truncate text-zinc-400 italic"}>
+      <span className={team ? "truncate font-medium" : "truncate text-zinc-400 italic"}>
         {team ?? desc}
       </span>
-      {isWinner && <span className="shrink-0 text-emerald-500">✓</span>}
+      {isWinner ? (
+        <span className="shrink-0 text-emerald-500">✓</span>
+      ) : team ? (
+        <span className="shrink-0 text-emerald-500/60" aria-hidden>
+          ●
+        </span>
+      ) : null}
     </button>
   );
 }
@@ -94,8 +102,11 @@ export function Bracket({
           return (
             <div key={round} className="flex flex-col gap-3">
               <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {ROUND_TITLES[round]}
-                <span className="ml-1 text-zinc-400">({roundMatches.length})</span>
+                <span className="block">{ROUND_TITLES[round]}</span>
+                <span className="block text-[10px] font-normal normal-case tracking-normal text-zinc-400">
+                  {roundMatches.length * 2} teams · {roundMatches.length}{" "}
+                  {roundMatches.length === 1 ? "match" : "matches"}
+                </span>
               </h4>
               <div className="flex flex-1 flex-col justify-around gap-3">
                 {roundMatches.map((m) => (

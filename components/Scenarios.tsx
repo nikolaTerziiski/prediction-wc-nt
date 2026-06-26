@@ -44,7 +44,7 @@ function CellSummary({ s }: { s: GroupScenario }) {
       ))}
       {s.goalSensitive && (
         <div className="pt-0.5 text-[10px] text-orange-500" title={s.sensitiveNote}>
-          ⚽ goals decide
+          ⚽ tiebreak
         </div>
       )}
     </div>
@@ -89,10 +89,10 @@ export function Scenarios({ predictions }: { predictions: Predictions }) {
 
       <p className="text-xs text-zinc-500">
         Every win/draw/loss combination of Group {group}&apos;s remaining matches.
-        Goal difference is computed from real results so far; a{" "}
-        <span className="text-orange-500">⚽ goals decide</span> tag marks scenarios
-        where teams finish level on points. Click a cell for the full table and each
-        qualifier&apos;s Round-of-32 opponent.
+        Standings use FIFA&apos;s 2026 tiebreakers (head-to-head first, then overall
+        goals); a <span className="text-orange-500">⚽ tiebreak</span> tag marks
+        scenarios where teams finish level on points. Click a cell for the full table
+        and each qualifier&apos;s Round-of-32 opponent.
       </p>
 
       {set.complete ? (
@@ -279,8 +279,9 @@ function ScenarioDetail({
       {/* Goal note */}
       {s.goalSensitive && (
         <p className="mt-3 rounded-md bg-orange-500/10 px-3 py-2 text-xs text-orange-700 dark:text-orange-400">
-          ⚽ {s.sensitiveNote}. The order shown assumes a 1-goal margin — set exact
-          scores on the Groups tab to resolve it.
+          ⚽ {s.sensitiveNote}. Your win/draw/loss picks set the head-to-head result;
+          where teams are still level it assumes a 1-goal margin — set exact scores on
+          the Groups tab to resolve it.
         </p>
       )}
     </section>

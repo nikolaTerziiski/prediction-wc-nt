@@ -1,6 +1,9 @@
 "use client";
 
 import { FixtureRow } from "./FixtureRow";
+import { r32OpponentOf } from "@/lib/engine";
+import type { BracketResult } from "@/lib/engine";
+import type { TeamProspect } from "@/lib/scenarios";
 import type { Fixture, Group, Predictions, Score, TeamStanding } from "@/lib/types";
 
 function rankStyle(rank: number, thirdQualifies: boolean): string {
@@ -9,12 +12,69 @@ function rankStyle(rank: number, thirdQualifies: boolean): string {
   return "border-l-transparent";
 }
 
+function fmtDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+const CHIP = {
+  green: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  sky: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  amber: "bg-amber-500/15 text-amber-600 dark:text-amber-500",
+  zinc: "bg-zinc-500/15 text-zinc-500",
+};
+
+/** Forward-looking qualification chip for a standings row. Null = nothing to show. */
+function statusChip(
+  p: TeamProspect | undefined,
+  complete: boolean,
+  thirdQ: boolean,
+): { label: string; cls: string } | null {
+  if (!p) return null;
+  switch (p.status) {
+    case "winner":
+      return { label: complete ? "1st" : "1st seed", cls: CHIP.green };
+    case "qualified":
+      return { label: "through", cls: CHIP.green };
+    case "third-race":
+      if (complete)
+        return thirdQ
+          ? { label: "3rd ✓", cls: CHIP.sky }
+          : { label: "out", cls: CHIP.zinc };
+      return { label: "3rd race", cls: CHIP.amber };
+    case "eliminated":
+      return { label: "out", cls: CHIP.zinc };
+    case "contention":
+      return null;
+  }
+}
+
+/** "When is their next game" — remaining group match, else the Round-of-32 tie. */
+function nextGameText(
+  p: TeamProspect | undefined,
+  team: string,
+  bracket: BracketResult,
+): string | null {
+  if (p?.nextOpponent && p.nextDate) {
+    return `Next: ${fmtDate(p.nextDate)} vs ${p.nextOpponent}`;
+  }
+  const r32 = r32OpponentOf(team, bracket);
+  if (r32) {
+    return `Next: Round of 32 vs ${r32.opponent ?? r32.opponentDesc}`;
+  }
+  return null;
+}
+
 export function GroupTable({
   group,
   standings,
   fixtures,
   predictions,
   qualifyingThirds,
+  prospects,
+  bracket,
+  locked,
   onScore,
 }: {
   group: Group;
@@ -22,16 +82,37 @@ export function GroupTable({
   fixtures: Fixture[];
   predictions: Predictions;
   qualifyingThirds: Set<string>;
+  prospects: Map<string, TeamProspect>;
+  bracket: BracketResult;
+  locked: boolean;
   onScore: (fixtureId: string, score: Score | null) => void;
 }) {
   const groupFixtures = fixtures
     .filter((f) => f.group === group.group)
     .sort((a, b) => a.date.localeCompare(b.date) || a.matchNumber - b.matchNumber);
 
+  const complete = groupFixtures.every((f) => f.homeScore != null && f.awayScore != null);
+
+  // Dead-rubber rotation note: an already-through team in its final group game.
+  const rotationNote = (f: Fixture): string | null => {
+    const sides: string[] = [];
+    const hp = prospects.get(f.home);
+    const ap = prospects.get(f.away);
+    if (hp?.rotationLikely && hp.nextFixtureId === f.id) sides.push(f.home);
+    if (ap?.rotationLikely && ap.nextFixtureId === f.id) sides.push(f.away);
+    if (sides.length === 0) return null;
+    return `⚡ ${sides.join(" & ")} already through — may rest / rotate players`;
+  };
+
   return (
     <section className="rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-950 overflow-hidden">
       <header className="flex items-center justify-between px-4 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-black/10 dark:border-white/10">
         <h3 className="font-bold tracking-tight">Group {group.group}</h3>
+        {complete && (
+          <span className="rounded-full bg-zinc-500/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+            complete
+          </span>
+        )}
       </header>
 
       {/* Standings */}
@@ -50,6 +131,9 @@ export function GroupTable({
         <tbody>
           {standings.map((s) => {
             const thirdQ = s.rank === 3 && qualifyingThirds.has(s.team);
+            const p = prospects.get(s.team);
+            const chip = statusChip(p, complete, thirdQ);
+            const next = nextGameText(p, s.team, bracket);
             return (
               <tr
                 key={s.team}
@@ -57,12 +141,24 @@ export function GroupTable({
               >
                 <td className="px-4 py-1.5">
                   <span className="text-zinc-400 tabular-nums mr-2">{s.rank}</span>
-                  <span className="font-medium">{s.team}</span>
-                  {s.rank === 3 && (
+                  <span
+                    className="font-medium"
+                    title={`FIFA World Ranking #${s.worldRanking}${
+                      s.yellow || s.red
+                        ? ` · fair-play ${s.fairPlay} (${s.yellow}Y${
+                            s.red ? ` ${s.red}R` : ""
+                          })`
+                        : ""
+                    }`}
+                  >
+                    {s.team}
+                  </span>
+                  {chip && (
                     <span
-                      className={`ml-2 text-[10px] uppercase tracking-wide ${thirdQ ? "text-sky-500" : "text-amber-500"}`}
+                      className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${chip.cls}`}
+                      title={next ?? undefined}
                     >
-                      {thirdQ ? "3rd ✓" : "3rd"}
+                      {chip.label}
                     </span>
                   )}
                 </td>
@@ -88,6 +184,8 @@ export function GroupTable({
             fixture={f}
             predictions={predictions}
             onScore={onScore}
+            locked={locked}
+            note={rotationNote(f)}
           />
         ))}
       </div>
