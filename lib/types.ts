@@ -95,6 +95,9 @@ export interface BracketMatch {
 export interface ResolvedSlot {
   team: Team | null; // null when not yet determined
   desc: string; // human label e.g. "Winner A", "3rd B/E/F", "Winner M73"
+  /** True when the team is locked by REAL results (its group is complete),
+   *  as opposed to a projection from predictions / unfinished groups. */
+  confirmed: boolean;
 }
 
 export interface ResolvedMatch {

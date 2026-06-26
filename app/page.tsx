@@ -26,9 +26,21 @@ export default function Home() {
     () => new Set(thirds.slice(0, 8).map((t) => t.team)),
     [thirds],
   );
+  // Groups whose REAL results are all in — used to mark the bracket's confirmed
+  // (green) teams vs projected ones. Independent of predictions.
+  const completeGroups = useMemo(() => {
+    const s = new Set<string>();
+    for (const g of GROUPS) {
+      const fx = FIXTURES.filter((f) => f.group === g.group);
+      if (fx.length > 0 && fx.every((f) => f.homeScore != null && f.awayScore != null)) {
+        s.add(g.group);
+      }
+    }
+    return s;
+  }, []);
   const bracket = useMemo(
-    () => resolveBracket(BRACKET, standings, predictions),
-    [standings, predictions],
+    () => resolveBracket(BRACKET, standings, predictions, completeGroups),
+    [standings, predictions, completeGroups],
   );
   const prospects = useMemo(() => {
     const m = new Map<string, Map<string, TeamProspect>>();

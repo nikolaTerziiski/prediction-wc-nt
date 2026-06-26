@@ -327,9 +327,14 @@ export function resolveBracket(
   template: BracketMatch[],
   standings: Map<string, TeamStanding[]>,
   p: Predictions,
+  /** Groups whose REAL results are complete — used to mark slots as confirmed
+   *  (locked) vs projected. Omit (scenarios) to treat everything as projected. */
+  completeGroups: Set<string> = new Set(),
 ): BracketResult {
   const winnerOf = (g: string) => standings.get(g)?.[0]?.team ?? null;
   const runnerUpOf = (g: string) => standings.get(g)?.[1]?.team ?? null;
+  // Best-third teams (and their allocation) are only locked once every group is done.
+  const allGroupsComplete = completeGroups.size >= 12;
 
   const thirds = rankedThirds(standings);
   const qualifiedThirds = thirds.slice(0, 8);
@@ -361,16 +366,29 @@ export function resolveBracket(
     const spec: SlotSpec = side === "home" ? m.home : m.away;
     switch (spec.kind) {
       case "winner":
-        return { team: winnerOf(spec.group), desc: `Winner ${spec.group}` };
+        return {
+          team: winnerOf(spec.group),
+          desc: `Winner ${spec.group}`,
+          confirmed: completeGroups.has(spec.group),
+        };
       case "runnerUp":
-        return { team: runnerUpOf(spec.group), desc: `2nd ${spec.group}` };
+        return {
+          team: runnerUpOf(spec.group),
+          desc: `2nd ${spec.group}`,
+          confirmed: completeGroups.has(spec.group),
+        };
       case "third": {
         const team = slotToTeam.get(`${m.id}:${side}`) ?? null;
-        return { team, desc: `3rd ${spec.groups.join("/")}` };
+        return {
+          team,
+          desc: `3rd ${spec.groups.join("/")}`,
+          confirmed: allGroupsComplete && team != null,
+        };
       }
       case "matchWinner": {
         const ref = byId.get(spec.match);
-        return { team: ref?.winner ?? null, desc: `Winner M${spec.match}` };
+        // A knockout outcome is never "confirmed" until that match is actually played.
+        return { team: ref?.winner ?? null, desc: `Winner M${spec.match}`, confirmed: false };
       }
       case "matchLoser": {
         const ref = byId.get(spec.match);
@@ -381,7 +399,7 @@ export function resolveBracket(
               ? ref.away.team
               : ref.home.team;
         }
-        return { team, desc: `Loser M${spec.match}` };
+        return { team, desc: `Loser M${spec.match}`, confirmed: false };
       }
     }
   };
